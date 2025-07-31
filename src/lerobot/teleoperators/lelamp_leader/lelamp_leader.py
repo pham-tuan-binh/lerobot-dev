@@ -50,6 +50,7 @@ class LeLampLeader(Teleoperator):
                 "elbow_flex": Motor(3, "sts3215", norm_mode_body),
                 "wrist_flex": Motor(4, "sts3215", norm_mode_body),
                 "wrist_roll": Motor(5, "sts3215", norm_mode_body),
+                "gripper": Motor(6, "sts3215", norm_mode_body),
             },
             calibration=self.calibration,
         )
@@ -139,6 +140,16 @@ class LeLampLeader(Teleoperator):
         start = time.perf_counter()
         action = self.bus.sync_read("Present_Position")
         action = {f"{motor}.pos": val for motor, val in action.items()}
+
+        # Read value from the gripper from action
+        intensity = action["gripper.pos"]
+        
+        # Map intensity from -100 to 100 to 0-255
+        intensity = int((intensity + 100) / 200 * 255)
+        action["led.intensity"] = intensity
+        # Remove gripper from action
+        action.pop("gripper.pos", None)
+
         dt_ms = (time.perf_counter() - start) * 1e3
         logger.debug(f"{self} read action: {dt_ms:.1f}ms")
         return action
