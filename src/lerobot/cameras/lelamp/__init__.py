@@ -12,6 +12,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .camera import Camera
-from .configs import CameraConfig, ColorMode, Cv2Rotation
-from .utils import make_cameras_from_configs
+from .camera_lelamp import LelampCamera
+from .configuration_lelamp import LeLampCameraConfig

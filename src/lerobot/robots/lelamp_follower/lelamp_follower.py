@@ -85,7 +85,10 @@ class LeLampFollower(Robot):
 
     @property
     def is_connected(self) -> bool:
-        return self.bus.is_connected and all(cam.is_connected for cam in self.cameras.values()) and self.head.is_connected()
+        # Print each connected check
+        status = self.bus.is_connected and all(cam.is_connected for cam in self.cameras.values()) and self.head.is_connected()
+
+        return status
 
     def connect(self, calibrate: bool = True) -> None:
         """

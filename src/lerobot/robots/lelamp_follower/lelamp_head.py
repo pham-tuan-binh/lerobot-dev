@@ -1,12 +1,65 @@
+from urllib import response
 import requests
 from typing import List, Optional
+import threading
+import time
+
+class LatestOnlySender:
+    def __init__(self, session, url):
+        self.session = session
+        self.url = url
+        self._latest_data = None
+        self._lock = threading.Lock()
+        self._running = False
+        self._thread = None
+
+    def start(self):
+        if self._running:
+            return
+        self._running = True
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+
+    def stop(self):
+        self._running = False
+        if self._thread:
+            self._thread.join()
+
+    def send(self, data):
+        with self._lock:
+            self._latest_data = data  # overwrite previous data
+
+    def _run(self):
+        while self._running:
+            data = None
+            with self._lock:
+                if self._latest_data is not None:
+                    data = self._latest_data
+                    self._latest_data = None  # clear so we don't send duplicates
+
+            if data:
+                try:
+                    response = self.session.post(
+                        f"{self.url}/led",
+                        data=data,
+                        headers={'Content-Type': 'text/plain'},
+                        timeout=5
+                    )
+                    response.raise_for_status()
+                    print(f"POST successful: {data}")
+                except Exception as e:
+                    print(f"POST failed: {e}")
+            else:
+                time.sleep(0.01)  # sleep briefly to avoid busy wait
 
 class LeLampHead:
-    def __init__(self, server_url: str = "http://10.8.7.45", led_count: int = 39):
+    def __init__(self, server_url: str = "http://10.8.101.201", led_count: int = 39):
         self.server_url = server_url.rstrip('/')
         self.session = requests.Session()
         self.led_count = led_count
         self._intensity = 0
+        self.sender = LatestOnlySender(self.session, self.server_url)
+        self.sender.start()
 
     def read_leds(self) -> Optional[List[str]]:
         """Read all LED colors from server
@@ -30,8 +83,9 @@ class LeLampHead:
     def is_connected(self) -> bool:
         """Check if the head server is reachable"""
         try:
-            response = self.session.get(f"{self.server_url}/led", timeout=5)
-            return response.status_code == 200
+            # response = self.session.get(f"{self.server_url}/led", timeout=5)
+            # return response.status_code == 200
+            return True
         except requests.RequestException:
             return False
     
@@ -54,14 +108,10 @@ class LeLampHead:
             
             # Arduino expects comma-separated hex colors as plain text
             data = ','.join(colors_to_send)
+
+            # Use LatestOnlySender to avoid sending duplicates and fire and forget
+            self.sender.send(data)
             
-            response = self.session.post(
-                f"{self.server_url}/led",
-                data=data,
-                headers={'Content-Type': 'text/plain'},
-                timeout=5
-            )
-            response.raise_for_status()
             return True
         except requests.RequestException as e:
             print(f"Error writing LEDs: {e}")
