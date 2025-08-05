@@ -46,7 +46,6 @@ class LatestOnlySender:
                         timeout=5
                     )
                     response.raise_for_status()
-                    print(f"POST successful: {data}")
                 except Exception as e:
                     print(f"POST failed: {e}")
             else:
